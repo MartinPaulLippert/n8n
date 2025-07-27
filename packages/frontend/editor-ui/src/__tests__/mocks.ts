@@ -30,7 +30,6 @@ import {
 import type { IExecutionResponse, INodeUi, IWorkflowDb } from '@/Interface';
 import { CanvasNodeRenderType } from '@/types';
 import type { FrontendSettings } from '@n8n/api-types';
-import { type LogEntry } from '@/components/RunDataAi/utils';
 
 export const mockNode = ({
 	id = uuid(),
@@ -97,6 +96,7 @@ export const mockNodeTypeDescription = ({
 		documentationUrl: 'https://docs',
 		iconUrl: 'nodes/test-node/icon.svg',
 		webhooks: undefined,
+		parameterPane: undefined,
 		hidden,
 	});
 
@@ -130,14 +130,18 @@ export const defaultNodeDescriptions = Object.values(defaultNodeTypes).map(
 	({ type }) => type.description,
 ) as INodeTypeDescription[];
 
-const nodeTypes = mock<INodeTypes>({
-	getByName(nodeType) {
-		return defaultNodeTypes[nodeType].type;
-	},
-	getByNameAndVersion(nodeType: string, version?: number): INodeType {
-		return NodeHelpers.getVersionedNodeType(defaultNodeTypes[nodeType].type, version);
-	},
-});
+export function createMockNodeTypes(data: INodeTypeData) {
+	return mock<INodeTypes>({
+		getByName(nodeType) {
+			return data[nodeType].type;
+		},
+		getByNameAndVersion(nodeType: string, version?: number): INodeType {
+			return NodeHelpers.getVersionedNodeType(data[nodeType].type, version);
+		},
+	});
+}
+
+const nodeTypes = createMockNodeTypes(defaultNodeTypes);
 
 export function createTestWorkflowObject({
 	id = uuid(),
@@ -148,6 +152,7 @@ export function createTestWorkflowObject({
 	staticData = {},
 	settings = {},
 	pinData = {},
+	...rest
 }: {
 	id?: string;
 	name?: string;
@@ -157,6 +162,7 @@ export function createTestWorkflowObject({
 	staticData?: IDataObject;
 	settings?: IWorkflowSettings;
 	pinData?: IPinData;
+	nodeTypes?: INodeTypes;
 } = {}) {
 	return new Workflow({
 		id,
@@ -167,7 +173,7 @@ export function createTestWorkflowObject({
 		staticData,
 		settings,
 		pinData,
-		nodeTypes,
+		nodeTypes: rest.nodeTypes ?? nodeTypes,
 	});
 }
 
@@ -221,6 +227,8 @@ export function createMockEnterpriseSettings(
 		sharing: false,
 		ldap: false,
 		saml: false,
+		oidc: false,
+		mfaEnforcement: false,
 		logStreaming: false,
 		advancedExecutionFilters: false,
 		variables: false,
@@ -252,24 +260,6 @@ export function createTestTaskData(partialData: Partial<ITaskData> = {}): ITaskD
 		executionStatus: 'success',
 		data: { main: [[{ json: {} }]] },
 		...partialData,
-	};
-}
-
-export function createTestLogEntry(data: Partial<LogEntry> = {}): LogEntry {
-	const executionId = data.executionId ?? 'test-execution-id';
-
-	return {
-		node: createTestNode(),
-		runIndex: 0,
-		runData: createTestTaskData({}),
-		id: uuid(),
-		children: [],
-		consumedTokens: { completionTokens: 0, totalTokens: 0, promptTokens: 0, isEstimate: false },
-		depth: 0,
-		workflow: createTestWorkflowObject(),
-		executionId,
-		execution: createTestWorkflowExecutionResponse({ id: executionId }).data!,
-		...data,
 	};
 }
 
